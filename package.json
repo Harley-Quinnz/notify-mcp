@@ -1,0 +1,39 @@
+{
+  "name": "notify-mcp",
+  "version": "1.0.0",
+  "description": "Claude Code için masaüstü ve e-posta bildirimi gönderen yerel MCP sunucusu",
+  "license": "MIT",
+  "author": "Harley-Quinnz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Harley-Quinnz/notify-mcp.git"
+  },
+  "homepage": "https://github.com/Harley-Quinnz/notify-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/Harley-Quinnz/notify-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude-code",
+    "notifications",
+    "email",
+    "desktop-notification"
+  ],
+  "engines": {
+    "node": "^22.22.0 || >=24.15.0"
+  },
+  "main": "index.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "dotenv": "^18.0.9",
+    "node-notifier": "^12.1.0",
+    "nodemailer": "^10.4.0",
+    "zod": "^4.6.7"
+  }
+}

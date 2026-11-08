@@ -1,0 +1,2 @@
+# Tüm metin dosyalarını repoda LF satır sonuyla sakla
+* text=auto eol=lf
