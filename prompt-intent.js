@@ -29,7 +29,8 @@ export function normalize(text) {
     .toLocaleLowerCase('tr-TR')
     .replace(/[çğıöşüâîû]/g, (c) => TR_MAP[c])
     .replace(/['’‘´]/g, '') // mail'i -> maili, don't -> dont
-    .replace(/(?<=[a-z0-9])-(?=[a-z0-9])/g, ''); // e-posta -> eposta, e-mail -> email
+    .replace(/(?<=[a-z0-9])-(?=[a-z0-9])/g, '') // e-posta -> eposta, e-mail -> email
+    .replace(/\bgeri\s+(donus|bildirim)/g, 'geri$1'); // geri dönüş -> geridonus
 }
 
 function tokenize(normalized) {
@@ -37,10 +38,10 @@ function tokenize(normalized) {
 }
 
 // --- Konu kelimeleri -------------------------------------------------------
-const GENERIC_TOPIC = /^(?:bildirim|geribildirim|notif|uyari)/; // hem ses hem e-posta
+const GENERIC_TOPIC = /^(?:bildirim|geribildirim|geridonus|notif|uyari)/; // hem ses hem e-posta
 const SOUND_TOPIC =
   /^(?:ses|sesi|sesli|sesle|sesler|sesleri|sesini|seslerini|bip|beep|beeps|sound|sounds|alarm|alarmi)$/;
-const EMAIL_TOPIC = /^(?:e?posta|e?mail)/;
+const EMAIL_TOPIC = /^(?:e?posta|e?mail)(?!er)/; // "mailer.js" bir dosya adıdır, konu değil
 
 const isTopic = (t) => GENERIC_TOPIC.test(t) || SOUND_TOPIC.test(t) || EMAIL_TOPIC.test(t);
 
@@ -75,6 +76,11 @@ const TR_OFF_STATE = /^(?:kapat\w*|kapali|kapansin|sustur\w*)$/; // durum deği�
 const TR_ON_VERB =
   /^(?:gonder|gonderin|gonderiniz|gondersin|gonderilsin|gonderebilirsin\w*|at|atin|atsin|atabilirsin\w*|yolla|yollayin|yollasin|yollayabilirsin\w*|cal|calin|calsin|calabilirsin\w*|kullan|kullanin|kullanabilirsin\w*|ac|acin|acsin|acilsin|acabilirsin\w*|istiyorum|isterim|olsun|yeter)$/;
 const TR_ON_STATE = /^(?:ac|acin|acsin|acilsin|acabilirsin\w*)$/;
+// Genel anlamlı fiiller ("sesli geri dönüş yap", "sesli cevap ver", "ses gelsin"):
+// yanlış eşleşmeyi önlemek için yalnızca hemen önceki kelimelere bakılır.
+const TR_ON_WEAK = /^(?:yap|yapin|yaparak|ver|verin|vererek|gelsin)$/;
+const TR_OFF_WEAK = /^(?:yapma|yapmayin|yapmasin|verme|vermeyin|vermesin)$/;
+const WEAK_WINDOW = 2;
 // "gönderme özelliği", "mail atma işlemi", "kullanma kılavuzu" gibi isim kullanımları.
 const NOUN_AFTER =
   /^(?:ozellig|fonksiyon|islev|islem|kod|mantig|modul|kism|sistem|ayar|sorun|hata|olay|script|betig|akis|mekanizma|arac|kilavuz)/;
@@ -145,18 +151,18 @@ function collectParts(tokens, start, step) {
   return parts;
 }
 
-function nearest(part) {
+function nearest(part, window) {
   const out = [];
   for (const t of part) {
     if (SKIP.test(t)) continue;
     out.push(t);
-    if (out.length >= NEAR_WINDOW) break;
+    if (out.length >= window) break;
   }
   return out;
 }
 
-function topicsNear(parts, chainOk) {
-  const found = topicsOf(nearest(parts[0]));
+function topicsNear(parts, chainOk, window = NEAR_WINDOW) {
+  const found = topicsOf(nearest(parts[0], window));
   // "sesli ve e-posta gönderme", "don't send email or sound" gibi listeler.
   for (let k = 1; k < parts.length && chainOk(parts[k]); k++) {
     const t = topicsOf(parts[k]);
@@ -232,8 +238,12 @@ export function detectPreferences(text) {
 
     if (isTrOff(tokens, i)) {
       mark(off, topicsNear(collectParts(tokens, i - 1, -1), trChainOk), TR_OFF_STATE.test(t));
+    } else if (TR_OFF_WEAK.test(t) && !NOUN_AFTER.test(tokens[i + 1] ?? '')) {
+      mark(off, topicsNear(collectParts(tokens, i - 1, -1), trChainOk, WEAK_WINDOW), false);
     } else if (TR_ON_VERB.test(t)) {
       mark(on, topicsNear(collectParts(tokens, i - 1, -1), trChainOk), TR_ON_STATE.test(t));
+    } else if (TR_ON_WEAK.test(t)) {
+      mark(on, topicsNear(collectParts(tokens, i - 1, -1), trChainOk, WEAK_WINDOW), false);
     }
 
     const eOff = enOff(tokens, i);

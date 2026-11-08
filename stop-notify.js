@@ -124,15 +124,25 @@ function playSound() {
           '-Command',
           '[Console]::Beep(523,150); [Console]::Beep(659,150); [Console]::Beep(784,150); [Console]::Beep(1046,300)',
         ],
-        { stdio: 'ignore', windowsHide: true }
+        { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true }
       );
     } else if (process.platform === 'darwin') {
-      child = spawn('afplay', ['/System/Library/Sounds/Glass.aiff'], { stdio: 'ignore' });
+      child = spawn('afplay', ['/System/Library/Sounds/Glass.aiff'], { stdio: ['ignore', 'ignore', 'pipe'] });
     } else {
       return resolve(); // Linux: varsayılan bir ses komutu yok, sessizce geç.
     }
+    const started = Date.now();
+    let stderr = '';
+    child.stderr?.on('data', (d) => (stderr += d));
     child.on('error', reject);
-    child.on('exit', () => resolve());
+    child.on('exit', (code) => {
+      if (code === 0) {
+        log(`Ses çalındı (${Date.now() - started} ms)`);
+        resolve();
+      } else {
+        reject(new Error(`ses komutu ${code} koduyla çıktı: ${stderr.trim() || '(çıktı yok)'}`));
+      }
+    });
   });
 }
 
